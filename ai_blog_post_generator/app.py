@@ -51,7 +51,7 @@ safety_settings = [
 ]
 
 # Set app to wide mode
-st.set_page_config(layout="wide")
+# st.set_page_config(layout="wide")
 
 # Title of the app
 st.title('✍📝 AI Blog Post Generator')
