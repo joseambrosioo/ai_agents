@@ -69,3 +69,6 @@ else:
             # Optionally remove the last user message if the API call failed
             # st.session_state.messages.pop()
 
+
+    st.markdown("---")
+    st.markdown("© Copyright 2025, created by Jose Ambrosio")

@@ -57,11 +57,11 @@ if st.button("Summarize"):
     if youtube_url:
         video_id = get_video_id(youtube_url)
         if video_id:
-            st.info("Fetching transcript...")
+            # st.info("Fetching transcript...")
             transcript = get_youtube_transcript(video_id)
 
             if transcript:
-                st.info("Generating summary...")
+                # st.info("Generating summary...")
                 summary = summarize_text_with_gemini(transcript)
 
                 if summary:
