@@ -16,7 +16,7 @@ load_dotenv()
 
 # Configure Streamlit
 st.set_page_config(page_title="Multi-URL Content Analyzer", page_icon="🔍", layout="wide")
-st.title("🔍 Multi-URL Content Analyzer")
+st.title("🔍 AI Multi-URL Content Analyzer")
 st.markdown("Extract and analyze content from multiple websites")
 
 # Initialize Gemini
@@ -239,5 +239,10 @@ def main():
                     st.markdown(f"**AI:** {answer}")
                     st.divider()
 
+st.markdown("---")
+st.markdown("© Copyright 2025, created by Jose Ambrosio")
+
 if __name__ == "__main__":
     main()
+
+

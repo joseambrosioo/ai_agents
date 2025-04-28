@@ -126,3 +126,6 @@ if submit_button:
         st.info("No images were generated.")
         
     st.write(response_text)
+
+st.markdown("---")
+st.markdown("© Copyright 2025, created by Jose Ambrosio")

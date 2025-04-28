@@ -156,5 +156,8 @@ def main():
             st.audio(response_audio_file, format="audio/wav")
             st.write("AI Response:", ai_response)
 
+st.markdown("---")
+st.markdown("© Copyright 2025, created by Jose Ambrosio")
+
 if __name__ == "__main__":
     main()
