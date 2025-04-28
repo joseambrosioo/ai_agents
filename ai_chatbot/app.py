@@ -14,6 +14,7 @@ else:
     genai.configure(api_key=api_key)
 
     # --- Streamlit App ---
+    st.set_page_config(page_title="AI Chatbot", page_icon="💬")
     st.title("💬 AI Chatbot")
     st.write("Interact with your AI assistant.")
 

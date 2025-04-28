@@ -15,7 +15,7 @@ import asyncio
 load_dotenv()
 
 # Configure Streamlit
-st.set_page_config(page_title="Multi-URL Content Analyzer", page_icon="🔍", layout="wide")
+st.set_page_config(page_title="Multi-URL Content Analyzer", page_icon="🔍")
 st.title("🔍 AI Multi-URL Content Analyzer")
 st.markdown("Extract and analyze content from multiple webpages")
 

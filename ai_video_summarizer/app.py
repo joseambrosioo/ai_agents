@@ -47,10 +47,12 @@ def summarize_text_with_gemini(text, max_length=500):
         return None
 
 # Streamlit App Title
+st.set_page_config(page_title="AI Youtube Video Summarizer", page_icon="📝")
 st.title("📝AI Youtube Video Summarizer")
+st.subheader("Generate concise summaries of YouTube videos using AI.")
 
 # Input field for YouTube URL
-youtube_url = st.text_input("Enter YouTube Video URL:", "")
+youtube_url = st.text_input("Enter a YouTube Video URL:", "")
 
 # Button to trigger summarization
 if st.button("Summarize"):
