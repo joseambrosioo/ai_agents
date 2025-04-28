@@ -1,0 +1,11 @@
+streamlit
+google-generativeai
+python-dotenv
+PyPDF2
+pandas
+matplotlib
+seaborn
+beautifulsoup4
+httpx
+Pillow
+streamlit-carousel

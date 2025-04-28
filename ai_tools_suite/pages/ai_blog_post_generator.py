@@ -13,11 +13,11 @@ import tempfile
 load_dotenv()
 
 # Retrieve API keys from environment
-GOOGLE_GEMINI_API_KEY = os.environ.get("GOOGLE_GEMINI_API_KEY")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 # Initialize Gemini client
-# client = genai.Client(api_key=GOOGLE_GEMINI_API_KEY)
-genai.configure(api_key=GOOGLE_GEMINI_API_KEY)
+# client = genai.Client(api_key=GOOGLE_API_KEY)
+genai.configure(api_key=GOOGLE_API_KEY)
 
 model = genai.GenerativeModel('gemini-2.0-flash-exp-image-generation')
 
