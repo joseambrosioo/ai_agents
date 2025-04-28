@@ -26,7 +26,7 @@ def init_gemini():
         st.error("Missing GOOGLE_API_KEY in .env file")
         st.stop()
     configure(api_key=api_key)
-    return GenerativeModel('gemini-1.5-flash')
+    return GenerativeModel('gemini-2.0-flash-exp-image-generation')
 
 model = init_gemini()
 
