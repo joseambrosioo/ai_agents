@@ -17,7 +17,7 @@ load_dotenv()
 # Configure Streamlit
 st.set_page_config(page_title="Multi-URL Content Analyzer", page_icon="🔍", layout="wide")
 st.title("🔍 AI Multi-URL Content Analyzer")
-st.markdown("Extract and analyze content from multiple websites")
+st.markdown("Extract and analyze content from multiple webpages")
 
 # Initialize Gemini
 def init_gemini():
