@@ -64,6 +64,8 @@ st.title('✍📝 AI Blog Post Generator')
 
 # Create a subheader
 st.subheader('Write amazing blog posts with the help of AI.')
+st.markdown("Use the sidebar menu on the left to write your blog post title and keywords.")
+
 
 # Sidebar for user input
 with st.sidebar:

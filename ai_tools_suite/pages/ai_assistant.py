@@ -16,7 +16,9 @@ else:
     # --- Streamlit App ---
     st.set_page_config(page_title="AI Chatbot Assistant", page_icon="💬")
     st.title("💬 AI Chatbot Assistant")
-    st.write("Interact with your AI assistant.")
+    # st.write("Interact with your AI assistant.")
+    st.subheader('Interact with your AI assistant.')
+
 
     # Initialize chat history in session state if it doesn't exist
     if "messages" not in st.session_state:

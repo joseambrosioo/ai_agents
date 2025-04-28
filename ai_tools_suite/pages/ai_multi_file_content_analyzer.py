@@ -22,7 +22,9 @@ load_dotenv()
 # Configure Streamlit
 st.set_page_config(page_title="AI Multi-File Analyzer", page_icon="🔎")
 st.title("📊🔎 AI Multi-File Analyzer")
-st.markdown("Upload and analyze multiple PDF, CSV documents and URLs with AI.")
+# st.markdown("Upload and analyze multiple PDF, CSV documents and URLs with AI.")
+st.subheader('Analyze multiple PDF, CSV documents and URLs with AI.')
+st.markdown("Use the sidebar menu on the left to upload your documents and URLs.")
 
 # Initialize Gemini
 def init_gemini():

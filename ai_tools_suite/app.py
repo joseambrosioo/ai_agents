@@ -12,9 +12,9 @@ st.markdown(
     """
     Use the menu on the left to navigate between the different AI tools:
     
-    - **AI Chatbot:** Interact with a conversational AI assistant.
-    - **Multi-File Analyzer:** Upload and analyze various document types and URLs with AI.
+    - **AI Assistant:** Interact with a conversational AI chatbot assistant.
     - **AI Blog Post Generator:** Use AI to write and generate blog content.
+    - **AI Multi-File Analyzer:** Upload and analyze various document types and URLs with AI.
     
     ---
     """
