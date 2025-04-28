@@ -9,6 +9,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 import csv
+import requests
+from bs4 import BeautifulSoup
+import time
+import random
+import httpx
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -16,7 +22,7 @@ load_dotenv()
 # Configure Streamlit
 st.set_page_config(page_title="AI Multi-File Analyzer", page_icon="📊")
 st.title("📊🔎 AI Multi-File Analyzer")
-st.markdown("Upload and analyze multiple PDF and CSV documents with AI.")
+st.markdown("Upload and analyze multiple PDF, CSV documents and URLs with AI.")
 
 # Initialize Gemini
 def init_gemini():
@@ -34,6 +40,8 @@ if 'extracted_texts' not in st.session_state:
     st.session_state.extracted_texts = []
 if 'uploaded_dfs' not in st.session_state:
     st.session_state.uploaded_dfs = []
+if 'extracted_url_contents' not in st.session_state:
+    st.session_state.extracted_url_contents = []
 if 'qa_history' not in st.session_state:
     st.session_state.qa_history = []
 if 'auto_qa' not in st.session_state:
@@ -75,26 +83,89 @@ def process_csv(file):
         st.error(f"Error processing CSV: {str(e)}")
         return None
 
-def generate_response(prompt, texts=None, dfs=None):
+async def extract_url_content(url):
+    methods = [
+        _scrape_with_httpx,
+        _scrape_with_requests,
+    ]
+    
+    for method in methods:
+        try:
+            content = await method(url)
+            if content: return content
+        except Exception as e:
+            continue
+    
+    return None
+
+async def _scrape_with_httpx(url):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.google.com/',
+        'DNT': '1'
+    }
+    
+    async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
+        response = await client.get(url)
+        response.raise_for_status()
+        return await _process_html(response.text)
+
+async def _scrape_with_requests(url):
+    headers = {
+        'User-Agent': random.choice([
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+            'Mozilla/5.0 (X11; Linux x86_64)'
+        ]),
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+    }
+    
+    time.sleep(random.uniform(1, 3))
+    response = requests.get(url, headers=headers, timeout=15)
+    response.raise_for_status()
+    return await _process_html(response.text)
+
+async def _process_html(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    for tag in ['script', 'style', 'nav', 'footer', 'iframe', 'noscript', 'svg']:
+        for element in soup.find_all(tag):
+            element.decompose()
+    
+    article = soup.find('article') or soup.find('main') or soup.find('div', class_=lambda x: x and 'content' in x.lower())
+    if article:
+        text = '\n\n'.join(p.get_text().strip() for p in article.find_all(['p', 'h1', 'h2', 'h3']) if p.get_text().strip())
+        return text if text else soup.get_text()
+    return soup.get_text()
+
+def generate_response(prompt, texts=None, dfs=None, url_contents=None):
     try:
         content_parts = []
         
         if texts:
-            combined_text = "\n\n".join([f"Content from Document {i+1}:\n{text[:10000]}" for i, text in enumerate(texts)])
+            combined_text = "\n\n".join([f"Content from PDF Document {i+1}:\n{text[:10000]}" for i, text in enumerate(texts)])
             content_parts.append(f"Text Content from PDF Documents:\n{combined_text}")
         
         if dfs:
             df_descriptions = []
             for i, df in enumerate(dfs):
-                df_desc = f"""
-                Data from CSV Document {i+1}:
-                - Shape: {df.shape}
-                - Columns: {', '.join(df.columns)}
-                - First 5 rows:
-                {df.head().to_string()}
-                """
-                df_descriptions.append(df_desc)
-            content_parts.append(f"Data from CSV Documents:\n{'\n\n'.join(df_descriptions)}")
+                if hasattr(df, 'shape'):  # Check if it's a DataFrame
+                    df_desc = f"""
+                    Data from CSV Document {i+1}:
+                    - Shape: {df.shape}
+                    - Columns: {', '.join(df.columns)}
+                    - First 5 rows:
+                    {df.head().to_string()}
+                    """
+                    df_descriptions.append(df_desc)
+            if df_descriptions:
+                content_parts.append(f"Data from CSV Documents:\n{'\n\n'.join(df_descriptions)}")
+            
+        if url_contents:
+            url_content = "\n\n".join([f"Content from URL {i+1}:\n{content[:10000]}" for i, content in enumerate(url_contents)])
+            content_parts.append(f"Content from URLs:\n{url_content}")
         
         full_content = "\n\n".join(content_parts)
         
@@ -105,6 +176,7 @@ def generate_response(prompt, texts=None, dfs=None):
         
         Please provide a detailed answer based on all the documents. 
         For CSV data, include specific insights from the data when possible.
+        For URL content, reference which URL the information came from.
         If the information is not available in the documents, state that clearly.
         Reference which document the information came from when possible.
         """
@@ -114,25 +186,31 @@ def generate_response(prompt, texts=None, dfs=None):
     except Exception as e:
         return f"Error generating response: {str(e)}"
 
-def generate_auto_qa(texts=None, dfs=None):
+def generate_auto_qa(texts=None, dfs=None, url_contents=None):
     content_parts = []
     
     if texts:
-        combined_text = "\n\n".join([f"Content from Document {i+1}:\n{text[:10000]}" for i, text in enumerate(texts)])
+        combined_text = "\n\n".join([f"Content from PDF Document {i+1}:\n{text[:10000]}" for i, text in enumerate(texts)])
         content_parts.append(f"Text Content from PDF Documents:\n{combined_text}")
     
     if dfs:
         df_descriptions = []
         for i, df in enumerate(dfs):
-            df_desc = f"""
-            Data from CSV Document {i+1}:
-            - Shape: {df.shape}
-            - Columns: {', '.join(df.columns)}
-            - First 5 rows:
-            {df.head().to_string()}
-            """
-            df_descriptions.append(df_desc)
-        content_parts.append(f"Data from CSV Documents:\n{'\n\n'.join(df_descriptions)}")
+            if hasattr(df, 'shape'):  # Check if it's a DataFrame
+                df_desc = f"""
+                Data from CSV Document {i+1}:
+                - Shape: {df.shape}
+                - Columns: {', '.join(df.columns)}
+                - First 5 rows:
+                {df.head().to_string()}
+                """
+                df_descriptions.append(df_desc)
+        if df_descriptions:
+            content_parts.append(f"Data from CSV Documents:\n{'\n\n'.join(df_descriptions)}")
+    
+    if url_contents:
+        url_content = "\n\n".join([f"Content from URL {i+1}:\n{content[:10000]}" for i, content in enumerate(url_contents)])
+        content_parts.append(f"Content from URLs:\n{url_content}")
     
     full_content = "\n\n".join(content_parts)
     
@@ -141,12 +219,13 @@ def generate_auto_qa(texts=None, dfs=None):
     
     Generate 5 important questions and answers that would help someone understand these documents.
     For CSV data, include questions about trends, patterns, and insights from the data.
+    For URL content, include questions about key information from each URL.
     Format as:
     Q1: [question]
-    A1: [answer] (Source: Document #)
+    A1: [answer] (Source: Document # or URL #)
     
     Q2: [question]
-    A2: [answer] (Source: Document #)
+    A2: [answer] (Source: Document # or URL #)
     
     ...
     """
@@ -158,6 +237,9 @@ def generate_data_analysis(dfs):
     analysis_results = []
     
     for i, df in enumerate(dfs):
+        if not hasattr(df, 'shape'):  # Skip if not a DataFrame
+            continue
+            
         analysis = f"## Analysis for CSV Document {i+1}\n"
         
         # Basic stats
@@ -222,6 +304,10 @@ def generate_data_analysis(dfs):
     return analysis_results
 
 def perform_eda(df):
+    if not hasattr(df, 'shape'):  # Skip if not a DataFrame
+        st.warning("Selected content is not a DataFrame for EDA")
+        return
+        
     st.subheader("Exploratory Data Analysis")
     
     # Basic info
@@ -323,10 +409,23 @@ def main():
         help="Upload multiple CSVs for data analysis"
     )
     
-    if st.sidebar.button("Process Files"):
+    # URL input section
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("URL Management")
+    num_urls = st.sidebar.number_input("Number of URLs to analyze", min_value=1, max_value=5, value=1)
+    url_inputs = []
+    
+    for i in range(num_urls):
+        url = st.sidebar.text_input(f"URL {i+1}", key=f"url_{i}", placeholder="https://example.com")
+        if url:
+            url_inputs.append(url)
+    
+    if st.sidebar.button("Process All Inputs"):
         st.session_state.extracted_texts = []
         st.session_state.uploaded_dfs = []
+        st.session_state.extracted_url_contents = []
         
+        # Process PDFs
         if uploaded_pdfs:
             with st.spinner(f"Extracting text from {len(uploaded_pdfs)} PDFs..."):
                 for file in uploaded_pdfs:
@@ -334,6 +433,7 @@ def main():
                     if text:
                         st.session_state.extracted_texts.append(text)
         
+        # Process CSVs
         if uploaded_csvs:
             with st.spinner(f"Processing {len(uploaded_csvs)} CSVs..."):
                 for file in uploaded_csvs:
@@ -341,8 +441,16 @@ def main():
                     if df is not None:
                         st.session_state.uploaded_dfs.append(df)
         
-        if not st.session_state.extracted_texts and not st.session_state.uploaded_dfs:
-            st.error("Failed to process any files. Try different files.")
+        # Process URLs
+        if url_inputs:
+            with st.spinner(f"Extracting content from {len(url_inputs)} URLs..."):
+                for url in url_inputs:
+                    content = asyncio.run(extract_url_content(url))
+                    if content:
+                        st.session_state.extracted_url_contents.append(content)
+        
+        if not st.session_state.extracted_texts and not st.session_state.uploaded_dfs and not st.session_state.extracted_url_contents:
+            st.error("Failed to process any inputs. Try different files or URLs.")
             return
             
         st.session_state.qa_history = []
@@ -351,11 +459,12 @@ def main():
         with st.spinner("Generating automatic Q&A..."):
             st.session_state.auto_qa = generate_auto_qa(
                 st.session_state.extracted_texts if st.session_state.extracted_texts else None,
-                st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None
+                st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None,
+                st.session_state.extracted_url_contents if st.session_state.extracted_url_contents else None
             )
     
     # Display extracted content if it exists
-    if st.session_state.extracted_texts or st.session_state.uploaded_dfs:
+    if st.session_state.extracted_texts or st.session_state.uploaded_dfs or st.session_state.extracted_url_contents:
         st.header("Uploaded Content")
         
         # Show PDF content
@@ -375,8 +484,22 @@ def main():
             csv_tabs = st.tabs([f"CSV {i+1}" for i in range(len(st.session_state.uploaded_dfs))])
             for i, df in enumerate(st.session_state.uploaded_dfs):
                 with csv_tabs[i]:
-                    st.write(f"Shape: {df.shape}")
-                    st.dataframe(df.head())
+                    if hasattr(df, 'shape'):
+                        st.write(f"Shape: {df.shape}")
+                        st.dataframe(df.head())
+                    else:
+                        st.warning("This content is not a valid DataFrame")
+        
+        # Show URL content
+        if st.session_state.extracted_url_contents:
+            st.subheader("URL Contents")
+            url_tabs = st.tabs([f"URL {i+1}" for i in range(len(st.session_state.extracted_url_contents))])
+            for i, content in enumerate(st.session_state.extracted_url_contents):
+                with url_tabs[i]:
+                    st.text_area(f"Content from URL {i+1}", 
+                               value=content[:5000] + ("..." if len(content) > 5000 else ""), 
+                               height=300,
+                               key=f"url_content_{i}", disabled=True)
         
         # Analysis options
         st.header("Analysis Options")
@@ -392,7 +515,8 @@ def main():
                     response = generate_response(
                         "Provide a comprehensive summary combining all documents",
                         st.session_state.extracted_texts if st.session_state.extracted_texts else None,
-                        st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None
+                        st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None,
+                        st.session_state.extracted_url_contents if st.session_state.extracted_url_contents else None
                     )
                     st.subheader("Combined Summary Results")
                     st.markdown(response)
@@ -403,7 +527,8 @@ def main():
                     response = generate_response(
                         "Provide bullet points of the key information across all documents",
                         st.session_state.extracted_texts if st.session_state.extracted_texts else None,
-                        st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None
+                        st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None,
+                        st.session_state.extracted_url_contents if st.session_state.extracted_url_contents else None
                     )
                     st.subheader("Combined Key Points Results")
                     st.markdown(response)
@@ -416,7 +541,8 @@ def main():
                 with st.spinner("Generating new Q&A set..."):
                     st.session_state.auto_qa = generate_auto_qa(
                         st.session_state.extracted_texts if st.session_state.extracted_texts else None,
-                        st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None
+                        st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None,
+                        st.session_state.extracted_url_contents if st.session_state.extracted_url_contents else None
                     )
                     st.rerun()
         
@@ -434,7 +560,8 @@ def main():
                             answer = generate_response(
                                 user_question,
                                 st.session_state.extracted_texts if st.session_state.extracted_texts else None,
-                                st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None
+                                st.session_state.uploaded_dfs if st.session_state.uploaded_dfs else None,
+                                st.session_state.extracted_url_contents if st.session_state.extracted_url_contents else None
                             )
                             st.session_state.qa_history.append((user_question, answer))
             with col2:
@@ -471,6 +598,9 @@ def main():
                 )
                 selected_df = st.session_state.uploaded_dfs[selected_df_index]
                 perform_eda(selected_df)
+
+st.markdown("---")
+st.markdown("© Copyright 2025, created by Jose Ambrosio")
 
 if __name__ == "__main__":
     main()
