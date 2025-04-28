@@ -198,5 +198,9 @@ def main():
                     st.markdown(f"**AI:** {answer}")
                     st.divider()
 
+st.markdown("---")
+st.markdown("© Copyright 2025, created by Jose Ambrosio")
+
+
 if __name__ == "__main__":
     main()

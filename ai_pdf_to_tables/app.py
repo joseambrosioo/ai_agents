@@ -201,5 +201,9 @@ def main():
             ])
             st.text_area("Raw Output", raw_output, height=300)
 
+st.markdown("---")
+st.markdown("© Copyright 2025, created by Jose Ambrosio")
+
+
 if __name__ == "__main__":
     main()
