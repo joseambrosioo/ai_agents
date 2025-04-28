@@ -221,6 +221,90 @@ def generate_data_analysis(dfs):
     
     return analysis_results
 
+def perform_eda(df):
+    st.subheader("Exploratory Data Analysis")
+    
+    # Basic info
+    st.write("### Dataset Overview")
+    st.write(f"**Shape:** {df.shape}")
+    
+    # Display the dataframe
+    st.write("### Data Preview")
+    st.dataframe(df.head())
+    
+    # Column selector
+    st.write("### Column Information")
+    selected_col = st.selectbox("Select a column to analyze:", df.columns)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Column statistics
+        st.write("**Column Statistics**")
+        if pd.api.types.is_numeric_dtype(df[selected_col]):
+            st.write(df[selected_col].describe())
+        else:
+            st.write(df[selected_col].describe(include='object'))
+    
+    with col2:
+        # Unique values
+        st.write("**Unique Values**")
+        unique_vals = df[selected_col].unique()
+        st.write(f"Count: {len(unique_vals)}")
+        if len(unique_vals) <= 20:
+            st.write(unique_vals)
+    
+    # Visualization section
+    st.write("### Visualizations")
+    viz_type = st.selectbox("Select visualization type:", 
+                           ["Histogram", "Box Plot", "Bar Chart", "Scatter Plot", "Correlation Heatmap"])
+    
+    if viz_type == "Histogram" and pd.api.types.is_numeric_dtype(df[selected_col]):
+        fig, ax = plt.subplots()
+        sns.histplot(df[selected_col], kde=True, ax=ax)
+        st.pyplot(fig)
+    
+    elif viz_type == "Box Plot" and pd.api.types.is_numeric_dtype(df[selected_col]):
+        fig, ax = plt.subplots()
+        sns.boxplot(x=df[selected_col], ax=ax)
+        st.pyplot(fig)
+    
+    elif viz_type == "Bar Chart":
+        if pd.api.types.is_numeric_dtype(df[selected_col]):
+            fig, ax = plt.subplots()
+            df[selected_col].value_counts().plot(kind='bar', ax=ax)
+            st.pyplot(fig)
+        else:
+            fig, ax = plt.subplots()
+            df[selected_col].value_counts().plot(kind='bar', ax=ax)
+            st.pyplot(fig)
+    
+    elif viz_type == "Scatter Plot" and len(df.select_dtypes(include=['number']).columns) >= 2:
+        x_col = st.selectbox("Select X-axis column:", df.select_dtypes(include=['number']).columns)
+        y_col = st.selectbox("Select Y-axis column:", df.select_dtypes(include=['number']).columns)
+        fig, ax = plt.subplots()
+        sns.scatterplot(x=df[x_col], y=df[y_col], ax=ax)
+        st.pyplot(fig)
+    
+    elif viz_type == "Correlation Heatmap" and len(df.select_dtypes(include=['number']).columns) >= 2:
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(df.select_dtypes(include=['number']).corr(), annot=True, ax=ax)
+        st.pyplot(fig)
+    
+    # Missing values
+    st.write("### Missing Values Analysis")
+    missing = df.isnull().sum()
+    if missing.sum() > 0:
+        st.write("**Columns with missing values:**")
+        st.write(missing[missing > 0])
+        
+        # Visualize missing values
+        fig, ax = plt.subplots()
+        sns.heatmap(df.isnull(), cbar=False, ax=ax)
+        st.pyplot(fig)
+    else:
+        st.success("No missing values found in the dataset!")
+
 def main():
     st.sidebar.header("File Management")
     
@@ -298,7 +382,7 @@ def main():
         st.header("Analysis Options")
         analysis_type = st.radio("Choose analysis type:", 
                                ["Summary", "Key Points", "Pre-generated Q&A", 
-                                "Interactive Q&A Chat", "Data Analysis (CSV only)"], 
+                                "Interactive Q&A Chat", "Data Analysis (CSV only)", "EDA (CSV only)"], 
                                horizontal=False,
                                key="analysis_type")
         
@@ -375,6 +459,18 @@ def main():
                     analysis_results = generate_data_analysis(st.session_state.uploaded_dfs)
                     for result in analysis_results:
                         st.markdown(result)
+        
+        elif analysis_type == "EDA (CSV only)":
+            if not st.session_state.uploaded_dfs:
+                st.warning("No CSV files uploaded for EDA")
+            else:
+                selected_df_index = st.selectbox(
+                    "Select CSV to analyze:",
+                    options=range(len(st.session_state.uploaded_dfs)),
+                    format_func=lambda x: f"CSV {x+1}"
+                )
+                selected_df = st.session_state.uploaded_dfs[selected_df_index]
+                perform_eda(selected_df)
 
 if __name__ == "__main__":
     main()
