@@ -34,9 +34,9 @@ def get_youtube_transcript(video_id):
         st.error(f"Error fetching transcript: {e}")
         return None
 
-# Function to summarize text using Gemini 1.5 Flash
+# Function to summarize text using Gemini 2.0 Flash Exp model
 def summarize_text_with_gemini(text, max_length=500):
-    """Summarizes the provided text using the Gemini 1.5 Flash model."""
+    """Summarizes the provided text using the Gemini 2.0 Flash Exp model."""
     try:
         model = genai.GenerativeModel('gemini-2.0-flash-exp')
         prompt = f"Summarize the following text, focusing on the main points and key information. Keep the summary concise, ideally under {max_length} words:\n\n{text}"
