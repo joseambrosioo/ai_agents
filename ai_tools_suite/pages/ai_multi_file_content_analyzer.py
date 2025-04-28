@@ -20,7 +20,7 @@ import asyncio
 load_dotenv()
 
 # Configure Streamlit
-st.set_page_config(page_title="AI Multi-File Analyzer", page_icon="📊")
+st.set_page_config(page_title="AI Multi-File Analyzer", page_icon="🔎")
 st.title("📊🔎 AI Multi-File Analyzer")
 st.markdown("Upload and analyze multiple PDF, CSV documents and URLs with AI.")
 

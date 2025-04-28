@@ -59,6 +59,7 @@ safety_settings = [
 # st.set_page_config(layout="wide")
 
 # Title of the app
+st.set_page_config(page_title="AI Blog Post Generator", page_icon="✍")
 st.title('✍📝 AI Blog Post Generator')
 
 # Create a subheader
