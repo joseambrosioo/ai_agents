@@ -181,7 +181,7 @@ def main():
                 st.text_area(f"Content from URL {i+1}", 
                            value=content[:5000] + ("..." if len(content) > 5000 else ""), 
                            height=300,
-                           key=f"content_{i}")
+                           key=f"content_{i}", disabled=True)
         
         # Analysis options
         st.header("Analysis Options")
