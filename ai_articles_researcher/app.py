@@ -15,9 +15,9 @@ import asyncio
 load_dotenv()
 
 # Configure Streamlit
-st.set_page_config(page_title="Advanced URL Q&A", page_icon="🔍", layout="wide")
-st.title("🔍 Advanced URL Content Analyzer")
-st.markdown("Extract and analyze content from protected websites")
+st.set_page_config(page_title="Multi-URL Content Analyzer", page_icon="🔍", layout="wide")
+st.title("🔍 Multi-URL Content Analyzer")
+st.markdown("Extract and analyze content from multiple websites")
 
 # Initialize Gemini
 def init_gemini():
@@ -31,10 +31,8 @@ def init_gemini():
 model = init_gemini()
 
 # Session state to persist content
-if 'extracted_content' not in st.session_state:
-    st.session_state.extracted_content = None
-if 'current_url' not in st.session_state:
-    st.session_state.current_url = None
+if 'extracted_contents' not in st.session_state:
+    st.session_state.extracted_contents = []
 if 'qa_history' not in st.session_state:
     st.session_state.qa_history = []
 if 'auto_qa' not in st.session_state:
@@ -97,16 +95,19 @@ async def _process_html(html):
         return text if text else soup.get_text()
     return soup.get_text()
 
-def generate_response(prompt, content):
+def generate_response(prompt, contents):
     try:
+        combined_content = "\n\n".join([f"Content from URL {i+1}:\n{content[:10000]}" for i, content in enumerate(contents)])
+        
         full_prompt = f"""
-        Content from {st.session_state.current_url}:
-        {content[:20000]}
+        Combined content from multiple URLs:
+        {combined_content}
         
         {prompt}
         
-        Please provide a detailed answer based on the content. 
+        Please provide a detailed answer based on all the content. 
         If the information is not available in the content, state that clearly.
+        Reference which URL the information came from when possible.
         """
         
         response = model.generate_content(full_prompt)
@@ -114,18 +115,20 @@ def generate_response(prompt, content):
     except Exception as e:
         return f"Error generating response: {str(e)}"
 
-def generate_auto_qa(content):
-    prompt = f"""
-    Content from {st.session_state.current_url}:
-    {content[:20000]}
+def generate_auto_qa(contents):
+    combined_content = "\n\n".join([f"Content from URL {i+1}:\n{content[:10000]}" for i, content in enumerate(contents)])
     
-    Generate 5 important questions and answers that would help someone understand this content.
+    prompt = f"""
+    Combined content from multiple URLs:
+    {combined_content}
+    
+    Generate 5 important questions and answers that would help someone understand this combined content.
     Format as:
     Q1: [question]
-    A1: [answer]
+    A1: [answer] (Source: URL #)
     
     Q2: [question]
-    A2: [answer]
+    A2: [answer] (Source: URL #)
     
     ...
     """
@@ -134,38 +137,54 @@ def generate_auto_qa(content):
     return response.text
 
 def main():
-    url = st.text_input("Enter URL to analyze:", placeholder="https://example.com/news/article")
+    st.sidebar.header("URL Management")
     
-    if st.button("Extract Content"):
-        if not url:
-            st.warning("Please enter a URL")
+    # URL input with dynamic addition
+    url_inputs = []
+    num_urls = st.sidebar.number_input("Number of URLs to analyze", min_value=1, max_value=5, value=1)
+    
+    for i in range(num_urls):
+        url = st.sidebar.text_input(f"URL {i+1}", key=f"url_{i}", placeholder="https://example.com")
+        if url:
+            url_inputs.append(url)
+    
+    if st.sidebar.button("Extract Content"):
+        if not url_inputs:
+            st.warning("Please enter at least one URL")
             return
             
-        with st.spinner("Extracting content..."):
-            content = asyncio.run(extract_content(url))
+        st.session_state.extracted_contents = []
+        with st.spinner(f"Extracting content from {len(url_inputs)} URLs..."):
+            for url in url_inputs:
+                content = asyncio.run(extract_content(url))
+                if content:
+                    st.session_state.extracted_contents.append(content)
             
-            if not content:
-                st.error("Failed to extract content. Try a different URL or method.")
+            if not st.session_state.extracted_contents:
+                st.error("Failed to extract content from any URLs. Try different URLs or methods.")
                 return
                 
-            st.session_state.extracted_content = content
-            st.session_state.current_url = url
             st.session_state.qa_history = []
             
             # Generate automatic Q&A
             with st.spinner("Generating automatic Q&A..."):
-                st.session_state.auto_qa = generate_auto_qa(content)
+                st.session_state.auto_qa = generate_auto_qa(st.session_state.extracted_contents)
     
-    # Display extracted content if it exists
-    if st.session_state.extracted_content:
-        st.subheader(f"Content from {st.session_state.current_url}")
-        st.text_area("Extracted Content", 
-                    value=st.session_state.extracted_content[:10000] + ("..." if len(st.session_state.extracted_content) > 10000 else ""), 
-                    height=300,
-                    key="content_display")
+    # Display extracted contents if they exist
+    if st.session_state.extracted_contents:
+        st.header("Extracted Contents")
+        
+        # Show tabs for each URL's content
+        tabs = st.tabs([f"URL {i+1}" for i in range(len(st.session_state.extracted_contents))])
+        for i, content in enumerate(st.session_state.extracted_contents):
+            with tabs[i]:
+                st.text_area(f"Content from URL {i+1}", 
+                           value=content[:5000] + ("..." if len(content) > 5000 else ""), 
+                           height=300,
+                           key=f"content_{i}")
         
         # Analysis options
-        st.subheader("Analysis Options")
+        st.header("Analysis Options")
         analysis_type = st.radio("Choose analysis type:", 
                                ["Summary", "Key Points", "Pre-generated Q&A", "Interactive Q&A Chat"], 
                                horizontal=False,
@@ -173,16 +192,16 @@ def main():
         
         if analysis_type == "Summary":
             if st.button("Generate Summary"):
-                with st.spinner("Generating summary..."):
-                    response = generate_response("Provide a comprehensive summary of this content", st.session_state.extracted_content)
-                    st.subheader("Summary Results")
+                with st.spinner("Generating combined summary..."):
+                    response = generate_response("Provide a comprehensive summary combining all content", st.session_state.extracted_contents)
+                    st.subheader("Combined Summary Results")
                     st.markdown(response)
         
         elif analysis_type == "Key Points":
             if st.button("Generate Key Points"):
-                with st.spinner("Generating key points..."):
-                    response = generate_response("Provide bullet points of the key information in this content", st.session_state.extracted_content)
-                    st.subheader("Key Points Results")
+                with st.spinner("Generating combined key points..."):
+                    response = generate_response("Provide bullet points of the key information across all content", st.session_state.extracted_contents)
+                    st.subheader("Combined Key Points Results")
                     st.markdown(response)
         
         elif analysis_type == "Pre-generated Q&A":
@@ -191,11 +210,11 @@ def main():
             
             if st.button("Regenerate Q&A"):
                 with st.spinner("Generating new Q&A set..."):
-                    st.session_state.auto_qa = generate_auto_qa(st.session_state.extracted_content)
+                    st.session_state.auto_qa = generate_auto_qa(st.session_state.extracted_contents)
                     st.rerun()
         
         elif analysis_type == "Interactive Q&A Chat":
-            st.markdown("### Ask Questions About the Content")
+            st.markdown("### Ask Questions About the Combined Content")
             user_question = st.text_input("Enter your question:", key="user_question")
             
             col1, col2 = st.columns([1, 4])
@@ -205,7 +224,7 @@ def main():
                         st.warning("Please enter a question")
                     else:
                         with st.spinner("Generating answer..."):
-                            answer = generate_response(user_question, st.session_state.extracted_content)
+                            answer = generate_response(user_question, st.session_state.extracted_contents)
                             st.session_state.qa_history.append((user_question, answer))
             with col2:
                 if st.button("Clear History"):
