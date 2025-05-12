@@ -6,7 +6,7 @@ st.set_page_config(
     page_icon="🤖",
 )
 
-st.title("Welcome to the AI Tools Suite Web App!")
+st.title("Welcome to the AI Tools Suite App!")
 
 st.markdown(
     """
