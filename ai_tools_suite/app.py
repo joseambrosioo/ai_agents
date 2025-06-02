@@ -2,11 +2,11 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="AI Tools Suite App",
+    page_title="AI Tool Suite App",
     page_icon="🤖",
 )
 
-st.title("Welcome to the AI Tools Suite App!")
+st.title("Welcome to the AI Tool Suite App!")
 
 st.markdown(
     """
